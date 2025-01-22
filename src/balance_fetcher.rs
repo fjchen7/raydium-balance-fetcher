@@ -18,8 +18,10 @@ pub struct SPLToken {
     pub decimals: u8,
 }
 
-// WSOL (Wrapped SOL) mint address
+// Program ID for Solana mainnet.
 pub const WSOL_MINT_ADDRESS: &str = "So11111111111111111111111111111111111111112";
+pub const RAYDIUM_V3_PROGRAM: &str = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
+pub const SOL_USDC_1BP_POOL: &str = "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj";
 
 impl BalanceFetcher {
     pub fn new<T: ToString>(rpc_url: T) -> Self {
@@ -83,6 +85,18 @@ impl BalanceFetcher {
         Ok(spl_token)
     }
 
+    /// Fetch the LP position amounts of Raydium SOL-USDC.1bp pool
+    ///
+    /// # Arguments
+    /// - `wallet_address` - The wallet address
+    ///
+    /// # Returns
+    /// - `(u64, u64)` - The total amount of SOL and USDC in wallet_address's LP position in the pool
+    pub fn position_sol_usdc_1bp(&self, wallet_address: &Pubkey) -> Result<(u64, u64)> {
+        let pool_id = Pubkey::from_str(SOL_USDC_1BP_POOL)?;
+        self.raydium_pool_position(wallet_address, &pool_id)
+    }
+
     /// Fetch LP position amounts of Raydium pool
     ///
     /// # Arguments
@@ -92,7 +106,8 @@ impl BalanceFetcher {
     ///
     /// # Returns
     /// - `(u64, u64)` - The total amount of token 0 and token 1 in wallet_address's LP position in the pool
-    pub fn raydium_pool_position(&self, wallet_address: &Pubkey, pool_id: &Pubkey, raydium_v3_program: &Pubkey) -> Result<(u64, u64)> {
+    pub fn raydium_pool_position(&self, wallet_address: &Pubkey, pool_id: &Pubkey) -> Result<(u64, u64)> {
+        let raydium_v3_program = Pubkey::from_str(RAYDIUM_V3_PROGRAM).unwrap();
         let positions = self.get_nft_account_and_position_by_owner(
             &wallet_address,
             spl_token_2022::id(),
@@ -257,11 +272,9 @@ mod tests {
     fn test_get_raydium_pool_position() {
         let fetcher = new_balancer_fetcher();
         let wallet = Pubkey::from_str("53zSj4G935ZY2a5x2UnGAiJXSuXXmGHaLph2zhAUvYpg").unwrap();
-        let raydium_v3_program = Pubkey::from_str("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK").unwrap();
         // SOL-USDC.1bp Pool
         let pool_id = Pubkey::from_str("8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj").unwrap();
-        let (amount_0, amount_1) = fetcher.raydium_pool_position(&wallet, &pool_id, &raydium_v3_program).unwrap();
-        println!("amount_0: {}, amount_1: {}", amount_0, amount_1);
+        let (amount_0, amount_1) = fetcher.raydium_pool_position(&wallet, &pool_id).unwrap();
         assert!(amount_0 > 0);
         assert!(amount_1 > 0);
     }
