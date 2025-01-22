@@ -22,8 +22,8 @@ pub struct SPLToken {
 
 // Program ID for Solana mainnet.
 pub const WSOL_MINT_ADDRESS: &str = "So11111111111111111111111111111111111111112";
-pub const RAYDIUM_V3_PROGRAM: &str = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
-pub const SOL_USDC_1BP_POOL: &str = "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj";
+pub const RAYDIUM_V3_PROGRAM_ID: &str = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
+pub const SOL_USDC_1BP_POOL_ID: &str = "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj";
 
 impl BalanceFetcher {
     pub fn new<T: ToString>(rpc_url: T) -> Self {
@@ -62,7 +62,7 @@ impl BalanceFetcher {
     /// - `wallet_address` - The wallet address
     ///
     /// # Returns
-    /// - `u64` - The SOL and WSOL balance of the wallet
+    /// - `u64` - The SOL and WSOL balance of the given wallet
     pub fn balance_sol_unified(&self, wallet_address: &Pubkey) -> Result<u64> {
         let sol_balance = self.balance_sol(wallet_address)?;
         let wsol_balance = self.balance_wsol(wallet_address)?;
@@ -109,9 +109,9 @@ impl BalanceFetcher {
     /// - `wallet_address` - The wallet address
     ///
     /// # Returns
-    /// - `(u64, u64)` - The total amount of SOL and USDC in wallet_address's LP position in the pool
+    /// - `(u64, u64)` - The total amount of SOL and USDC of the wallet_address's LP positions in the given pool
     pub fn position_sol_usdc_1bp(&self, wallet_address: &Pubkey) -> Result<(u64, u64)> {
-        let pool_id = Pubkey::from_str(SOL_USDC_1BP_POOL)?;
+        let pool_id = Pubkey::from_str(SOL_USDC_1BP_POOL_ID)?;
         self.raydium_pool_position(wallet_address, &pool_id)
     }
 
@@ -120,12 +120,11 @@ impl BalanceFetcher {
     /// # Arguments
     /// - `wallet_address` - The wallet address
     /// - `pool_id` - The pool ID, e.g. 8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj (SOL-USDC.1bp Pool in Raydium mainnet)
-    /// - `raydium_v3_program` - The Raydium V3 program ID, e.g. CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK (Raydium mainnet program ID)
     ///
     /// # Returns
-    /// - `(u64, u64)` - The total amount of token 0 and token 1 in wallet_address's LP position in the pool
+    /// - `(u64, u64)` - The total amount of token 0 and token 1 of the wallet_address's LP positions in the given pool
     pub fn raydium_pool_position(&self, wallet_address: &Pubkey, pool_id: &Pubkey) -> Result<(u64, u64)> {
-        let raydium_v3_program = Pubkey::from_str(RAYDIUM_V3_PROGRAM).unwrap();
+        let raydium_v3_program = Pubkey::from_str(RAYDIUM_V3_PROGRAM_ID).unwrap();
         let positions = self.get_nft_account_and_position_by_owner(
             &wallet_address,
             spl_token_2022::id(),
@@ -160,6 +159,7 @@ impl BalanceFetcher {
                 }
             }
         ).collect::<Vec<_>>();
+
         let mut amount_0 = 0;
         let mut amount_1 = 0;
         for position in positions {
