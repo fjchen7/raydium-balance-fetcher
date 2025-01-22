@@ -4,7 +4,8 @@ use raydium_amm_v3::libraries::{get_delta_amount_0_unsigned, get_delta_amount_1_
 use solana_account_decoder::parse_token::{TokenAccountType, UiAccountState};
 use solana_account_decoder::UiAccountData;
 use solana_client::rpc_client::RpcClient;
-use solana_rpc_client_api::request::TokenAccountsFilter;
+use solana_rpc_client_api::client_error::ErrorKind;
+use solana_rpc_client_api::request::{RpcError, TokenAccountsFilter};
 use solana_sdk::account::Account;
 use solana_sdk::pubkey::Pubkey;
 
@@ -13,8 +14,9 @@ pub struct BalanceFetcher {
     pub rpc: RpcClient,
 }
 
+#[allow(dead_code)]
 pub struct SPLToken {
-    pub amount: u64,
+    amount: u64,
     pub decimals: u8,
 }
 
@@ -77,7 +79,23 @@ impl BalanceFetcher {
     /// - `SPLToken` - The balance and decimals of the token account
     pub fn balance_spl_token(&self, wallet_address: &Pubkey, token_mint_address: &Pubkey) -> Result<SPLToken> {
         let addr = spl_associated_token_account::get_associated_token_address(&wallet_address, &token_mint_address);
-        let ui_token_amount = self.rpc.get_token_account_balance(&addr)?;
+        let ui_token_amount =
+            match self.rpc.get_token_account_balance(&addr) {
+                Ok(ui_token_amount) => ui_token_amount,
+                Err(err) => {
+                    match err.kind {
+                        ErrorKind::RpcError(RpcError::RpcResponseError { .. }) => {
+                            // If the token account does not exist, RPC return error.
+                            // This is a temporary solution.
+                            log::warn!("address {} does not have token account for SPL token {}", addr, token_mint_address);
+                            return Ok(SPLToken { amount: 0, decimals: 0 });
+                        }
+                        _ => {
+                            return Err(err.into());
+                        }
+                    }
+                }
+            };
         // Amount is the raw balance without decimals, a string representation of u64
         let amount = u64::from_str(&ui_token_amount.amount).unwrap();
         let decimals = ui_token_amount.decimals;
