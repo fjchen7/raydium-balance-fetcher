@@ -21,4 +21,4 @@ spl-token = { version = "=4.0.0" }
 spl-token-2022 = { version = "=0.9.0" }
 spl-memo = "=4.0.0"
 anchor-lang = "=0.29.0"
-#spl-associated-token-account = "6.0.0"
+spl-associated-token-account = "2.2.0"
