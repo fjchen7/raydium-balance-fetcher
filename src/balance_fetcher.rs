@@ -12,22 +12,51 @@ pub struct SPLToken {
     pub decimals: u8,
 }
 
+// WSOL (Wrapped SOL) mint address
+pub const WSOL_MINT_ADDRESS: &str = "So11111111111111111111111111111111111111112";
+
 impl BalanceFetcher {
     pub fn new<T: ToString>(rpc_url: T) -> Self {
         let rpc = RpcClient::new(rpc_url.to_string());
         Self { rpc }
     }
 
-    /// Fetch the balance of a SOL wallet
+    /// Fetch the SOL balance of a wallet
     ///
     /// # Arguments
-    /// - `pubkey` - The wallet address
+    /// - `wallet_address` - The wallet address
     ///
     /// # Returns
-    /// - `u64` - The balance of the wallet
-    pub fn balance_sol(&self, pubkey: &Pubkey) -> Result<u64> {
-        let balance = self.rpc.get_balance(&pubkey)?;
+    /// - `u64` - The SOL balance of the wallet
+    pub fn balance_sol(&self, wallet_address: &Pubkey) -> Result<u64> {
+        let balance = self.rpc.get_balance(&wallet_address)?;
         Ok(balance)
+    }
+
+    /// Fetch the WSOL (Wrapped SOL) balance of a wallet
+    ///
+    /// # Arguments
+    /// - `wallet_address` - The wallet address
+    ///
+    /// # Returns
+    /// - `u64` - The WSOL balance of the wallet
+    pub fn balance_wsol(&self, wallet_address: &Pubkey) -> Result<u64> {
+        let wsol_mint_address = Pubkey::from_str(WSOL_MINT_ADDRESS).unwrap();
+        let balance = self.balance_spl_token(wallet_address, &wsol_mint_address)?;
+        Ok(balance.amount)
+    }
+
+    /// Fetch the SOL and WSOL (Wrapped SOL) balance sum of a wallet
+    ///
+    /// # Arguments
+    /// - `wallet_address` - The wallet address
+    ///
+    /// # Returns
+    /// - `u64` - The SOL and WSOL balance of the wallet
+    pub fn balance_sol_unified(&self, wallet_address: &Pubkey) -> Result<u64> {
+        let sol_balance = self.balance_sol(wallet_address)?;
+        let wsol_balance = self.balance_wsol(wallet_address)?;
+        Ok(sol_balance + wsol_balance)
     }
 
     /// Fetch the balance of a SPL token account
@@ -62,10 +91,13 @@ mod tests {
 
     #[test]
     fn test_balance_sol() {
-        let balancer_fetcher = new_balancer_fetcher();
+        let fetcher = new_balancer_fetcher();
+        // Binance wallet address
         let pubkey = Pubkey::from_str("5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9").unwrap();
-        let balance_sol = balancer_fetcher.balance_sol(&pubkey).unwrap();
+        let balance_sol = fetcher.balance_sol(&pubkey).unwrap();
         assert!(balance_sol > 0);
+        let balance_sol_unified = fetcher.balance_sol_unified(&pubkey).unwrap();
+        assert!(balance_sol_unified > balance_sol);
     }
 
     #[test]
